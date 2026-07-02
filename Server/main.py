@@ -373,8 +373,9 @@ def assignment_upload(authentication_key: AuthenticationKey):
     return '', 200
 
 
-@app.route("/search/course/<search_query>/")
-@limiter.limit("5/minute")
+@app.route("/search/course/<search_query>/", methods=["POST"])
+@limiter.limit("20/minute")
+@limiter.limit("1/second")
 @check_authentication
 def course_search(authentication_key: AuthenticationKey, search_query: str):
     name_query = select(Course).where(Course.name.ilike(f'%{search_query}%'))
@@ -386,9 +387,9 @@ def course_search(authentication_key: AuthenticationKey, search_query: str):
 
     courses_data = []
     for course in courses:
-        courses_data.append(course_info(None, course.id))
+        courses_data.append(course_info(course.id))
 
-    return jsonify({"courses": courses_data})
+    return courses_data
     
 
 @app.route("/course/<course_id>/", methods=["POST"])
