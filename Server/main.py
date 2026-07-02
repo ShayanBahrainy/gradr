@@ -391,7 +391,9 @@ def course_search(authentication_key: AuthenticationKey, search_query: str):
     return jsonify({"courses": courses_data})
     
 
-@app.route("/course/<course_id>/")
+@app.route("/course/<course_id>/", methods=["POST"])
+@limiter.limit("20/minute")
+@limiter.limit("5/second")
 @check_authentication
 def course_info(authentication_key: AuthenticationKey, course_id: str):
     try:
@@ -401,29 +403,26 @@ def course_info(authentication_key: AuthenticationKey, course_id: str):
     
     query = select(Course).where(Course.id == course_id)
 
-    course: Course = db.session.execute(query).one_or_none()
+    course: Course = db.session.execute(query).scalars().one_or_none()
     if not course:
         abort(404)
 
-    course_data = {}
-
-    course_data["name"] = course.name
-    course_data["id"] = course.id
-    course_data["teacher_name"] = course.teacher_name
-
-    subq = select(GradeSnapshot.numeric).distinct(GradeSnapshot.enrollment_id).where(GradeSnapshot.enrollment.course_id == course.id).order_by(GradeSnapshot.enrollment_id, GradeSnapshot.time.desc()).subquery()
+    subq = select(GradeSnapshot.numeric).join(GradeSnapshot.enrollment).where(Enrollment.course_id == course.id).distinct(GradeSnapshot.enrollment_id).order_by(GradeSnapshot.enrollment_id, GradeSnapshot.time.desc()).subquery()
     
     query = select(func.avg(subq.c.numeric), func.count()).select_from(subq)
 
     numeric, sample_count = db.session.execute(query).one()
 
-    course_data["numeric"] = numeric or 0.0
+    course_data = {
+        "name": course.name,
+        "id": course.id,
+        "teacher_name": course.teacher_name,
+        "numeric": numeric or 0.0,
+        "sample_count": sample_count or 0,
+        "letter": numeric_to_letter_grade(numeric or 0.0),
+    }
 
-    course_data["sample_count"] = sample_count or 0
-
-    course_data["letter"] = numeric_to_letter_grade(numeric or 0.0)
-
-    return jsonify({"data": course_data})
+    return course_data
 
 
 if __name__ == "__main__":
