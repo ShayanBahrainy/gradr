@@ -1,5 +1,9 @@
 from flask import Flask, request, make_response, jsonify, abort
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+import functools
+
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
@@ -24,6 +28,7 @@ class Base(DeclarativeBase):
 
 db = SQLAlchemy(model_class=Base)
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DB_URI")
 limiter = Limiter(
     get_remote_address,
