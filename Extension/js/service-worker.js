@@ -215,15 +215,33 @@ async function checkAuthentication() {
     }
 
     const request = new Request("https://portals.veracross.com/oakwood/student/student/overview", {
-        method: "HEAD",
+        method: "GET",
         credentials: "include",
         redirect: "manual",
         cache: "no-store",
     });
 
     try {
-        fetch(request).then((response)=>{
-            if (response.ok) resolve(true);
+        fetch(request).then(async (response)=>{
+            if (response.ok) {
+                const text = await response.text();
+
+                const email_marker = "username: \"";
+
+                const email_index = text.indexOf(email_marker);
+
+                if (email_index == -1) resolve(false);
+
+                const email_end = text.indexOf("\"", email_index + email_marker.length);
+
+                if (email_end == -1) resolve(false);
+
+                const email = text.substring(email_index + email_marker.length, email_end);
+
+                if (email != (await chrome.storage.local.get(["lastEmail"]))["lastEmail"]) resolve(false);
+
+                resolve(true);
+            }
             else resolve(false);
         })
     }
@@ -231,32 +249,6 @@ async function checkAuthentication() {
 
 
     return promise;
-    
-    request = new Request(SERVER_BASE_URL + "/authenticate/check/", {
-        method: "POST",
-        body: JSON.stringify(
-            {
-                authentication_key: data["authenticationKey"],
-            }
-        ),
-        headers: {
-            "Content-Type": "application/json",
-        }
-    });
-
-    const response = await fetch(request);
-
-    if (!response.ok) {
-        return false;
-    }
-
-    data = await response.json();
-
-    if (data["result"] == "Success") {
-        return true;
-    }
-
-    return false;
 }
 
 async function uploadCourseData(course_data) {
@@ -337,6 +329,167 @@ function openPage(page) {
     chrome.action.setPopup({popup:"html/index.html"})
 }
 
+async function loadClass(class_id) {
+    if (!await checkAuthentication()) return;
+    
+    const authentication_key = (await chrome.storage.local.get(["authenticationKey"])).authenticationKey;
+
+    const request = new Request(SERVER_BASE_URL + "/course/" + class_id + "/", {
+        method: "POST",
+        body: JSON.stringify({
+            authentication_key: authentication_key
+        }),
+
+        headers: {
+            "Content-Type": "application/json"
+        }
+
+    });
+
+    const response = await fetch(request);
+
+    if (response.ok) {
+        return await response.json();
+    }
+    else {
+        throw new Error(await response.text());
+    }
+}
+
+async function loadSavedClasses() {
+    let saved_classes = (await chrome.storage.local.get(["savedClasses"])).savedClasses ?? [];
+
+    let data = []
+    for (let class_id of saved_classes) {
+        data.push(await loadClass(class_id));
+    }
+
+    return data;
+}
+
+async function search(searchQuery) {
+    if (!await checkAuthentication()) return;
+
+    const authentication_key = (await chrome.storage.local.get(["authenticationKey"])).authenticationKey;
+
+    const request = new Request(SERVER_BASE_URL + "/search/course/?query=" + searchQuery, {
+        method: "POST",
+        body: JSON.stringify({
+            authentication_key: authentication_key
+        }),
+
+        headers: {
+            "Content-Type": "application/json"
+        }
+
+    });
+
+    const response = await fetch(request);
+
+    if (response.ok) {
+        const data = {
+            results: await response.json(),
+            saved: (await chrome.storage.local.get(["savedClasses"])).savedClasses ?? [],
+        }
+
+        return data;
+    }
+    else {
+        throw new Error(await response.text());
+    }
+
+}
+
+async function saveClass(id) {
+    const saved_classes = (await chrome.storage.local.get("savedClasses")).savedClasses ?? [];
+
+    if (saved_classes.length == 5) {
+        saved_classes.pop();
+    }
+
+    saved_classes.push(parseInt(id));
+
+    chrome.storage.local.set({savedClasses: saved_classes});
+}
+
+async function removeClass(id) {
+    let saved_classes = (await chrome.storage.local.get("savedClasses")).savedClasses ?? [];
+    id = parseInt(id);
+    saved_classes = saved_classes.filter((clss) => clss != id);
+
+    chrome.storage.local.set({savedClasses: saved_classes});
+}
+
+async function checkConnection() {
+    const request = new Request(SERVER_BASE_URL + "/generate_204", {method: "GET"});
+
+    try {
+        const response = await fetch(request);
+        return response.status == 204;
+    }
+    catch (e) {
+        return false;
+    }
+
+}
+
+async function fetchGPA() {
+    if (!(await checkAuthentication())) return;
+
+    const authentication_key = (await chrome.storage.local.get(["authenticationKey"])).authenticationKey;
+
+    const request = new Request(SERVER_BASE_URL + "/student/gpa/", {
+        method: "POST",
+        body: JSON.stringify({
+            authentication_key: authentication_key
+        }),
+        headers: {
+            "Content-Type": "application/json"
+        }
+    })
+
+    const response = await fetch(request);
+
+    if (response.ok) {
+        return await response.json();
+    }
+    else {
+        console.error(await response.text());
+    }
+
+    return null;
+}
+
+async function shiftUp(id) {
+    const saved_classes = (await chrome.storage.local.get("savedClasses")).savedClasses ?? [];
+
+    for (let i = 0; i < saved_classes.length; i++) {
+        if (saved_classes[i] == id && i > 0){
+            const tmp = saved_classes[i - 1];
+            saved_classes[i - 1] = saved_classes[i];
+            saved_classes[i] = tmp;
+            break;
+        } 
+    }
+
+    chrome.storage.local.set({savedClasses: saved_classes});
+}
+
+async function shiftDown(id) {
+    const saved_classes = (await chrome.storage.local.get("savedClasses")).savedClasses ?? [];
+
+    for (let i = 0; i < saved_classes.length; i++) {
+        if (saved_classes[i] == id && i < saved_classes.length - 1){
+            const tmp = saved_classes[i + 1];
+            saved_classes[i + 1] = saved_classes[i];
+            saved_classes[i] = tmp;
+            break;
+        } 
+    }
+
+    chrome.storage.local.set({savedClasses: saved_classes});
+}
+
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     if (message.type == "user_id") {
         const response = {};
@@ -391,9 +544,41 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         );
     }
 
+    if (message.type == "load_classes") {
+        loadSavedClasses().then(sendResponse);
+    }
+
     if (message.type == "open_page") {
         sendResponse({result: "close"})
         setTimeout(openPage, 500, message.page);
+    }
+
+    if (message.type == "search") {
+        search(message.query).then(sendResponse);
+    }
+
+    if (message.type == "check_connection") {
+        checkConnection().then(sendResponse);
+    }
+
+    if (message.type == "fetch_gpa") {
+        fetchGPA().then(sendResponse);
+    }
+
+    if (message.type == "save_class") {
+        saveClass(message.id);
+    }
+    
+    if (message.type == "remove_class") {
+        removeClass(message.id);
+    }
+
+    if (message.type == "up_class") {
+        shiftUp(message.id);
+    }
+
+    if (message.type == "down_class") {
+        shiftDown(message.id);
     }
 
     return true;
