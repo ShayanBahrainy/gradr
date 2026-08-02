@@ -52,9 +52,9 @@ class Verifier:
         email["to"] = email_address 
         email["from"] = os.environ.get("RESEND_FROM_ADDRESS")
 
-        email["subject"] = "Verify your email for Nova"
+        email["subject"] = "verify your email for gradr"
 
-        email["html"] = f"<p>Hello! <br> Your verification code for Nova is {code} <br> Thanks. </p>"
+        email["html"] = f"<p>hello! <br> your verification code for gradr is {code} <br> thanks. </p>"
 
         resend.Emails.send(email)
 
