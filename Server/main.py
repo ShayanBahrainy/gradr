@@ -165,6 +165,7 @@ def numeric_to_letter_grade(numeric: float) -> str:
 
 @limiter.limit("1/minute")
 @app.route("/authenticate/verify/", methods=["POST"])
+@limiter.limit("30/minute")
 def verify():
     if "code" not in request.json:
         abort(400)
@@ -213,6 +214,7 @@ def verify():
 
 @limiter.limit("1/minute")
 @app.route("/authenticate/check/", methods=["POST"])
+@limiter.limit("30/minute")
 def authentication_check():
     if "authentication_key" not in request.json:
         abort(400)
@@ -227,6 +229,7 @@ def authentication_check():
 
 @limiter.limit("1/minute")
 @app.route("/authenticate/", methods=["POST"])
+@limiter.limit("30/minute")
 def authenticate():
     page_content: str = request.json["content"] 
 
@@ -279,6 +282,7 @@ def authenticate():
     abort(400)
 
 @app.route("/authenticate/revoke/", methods=["POST"])
+@limiter.limit("30/minute")
 def revoke_authentication():
     if "authentication_key" not in request.json:
         abort(400)
@@ -301,6 +305,7 @@ def revoke_authentication():
 @app.route("/upload/course_data/", methods=["POST"])
 #@limiter.limit("1/minute")
 @check_authentication
+@limiter.limit("3/minute", key_func=get_user_id)
 def course_upload(authentication_key: AuthenticationKey):
     if "courses" not in request.json:
         abort(400)
@@ -339,6 +344,7 @@ def course_upload(authentication_key: AuthenticationKey):
 @app.route("/upload/assignment_data/", methods=["POST"])
 @limiter.limit("1/minute")
 @check_authentication
+@limiter.limit("3/minute", key_func=get_user_id)
 def assignment_upload(authentication_key: AuthenticationKey):
     if "scores" not in request.json:
         abort(400)
@@ -383,6 +389,8 @@ def assignment_upload(authentication_key: AuthenticationKey):
 @limiter.limit("20/minute")
 @limiter.limit("1/second")
 @check_authentication
+@limiter.limit("20/minute", key_func=get_user_id)
+@limiter.limit("2/second", key_func=get_user_id)
 def course_search(authentication_key: AuthenticationKey, search_query: str):
     name_query = select(Course).where(Course.name.ilike(f'%{search_query}%'))
     teacher_query = select(Course).where(Course.teacher_name.ilike(f'%{search_query}%'))
@@ -402,6 +410,8 @@ def course_search(authentication_key: AuthenticationKey, search_query: str):
 @limiter.limit("20/minute")
 @limiter.limit("5/second")
 @check_authentication
+@limiter.limit("30/minute", key_func=get_user_id)
+@limiter.limit("5/second", key_func=get_user_id)
 def course_info(authentication_key: AuthenticationKey, course_id: str):
     try:
         course_id = int(course_id)
@@ -414,7 +424,14 @@ def course_info(authentication_key: AuthenticationKey, course_id: str):
     if not course:
         abort(404)
 
-    subq = select(GradeSnapshot.numeric).join(GradeSnapshot.enrollment).where(Enrollment.course_id == course.id).distinct(GradeSnapshot.enrollment_id).order_by(GradeSnapshot.enrollment_id, GradeSnapshot.time.desc())
+    return course_data(course)
+
+@app.route("/student/gpa/", methods=["POST"])
+@check_authentication
+@limiter.limit("10/minute", key_func=get_user_id)
+@limiter.limit("1/second", key_func=get_user_id)
+def fetch_gpa(authentication_key: AuthenticationKey):
+    query = select(GradeSnapshot.numeric).join(GradeSnapshot.enrollment).where(Enrollment.course_id == course.id).distinct(GradeSnapshot.enrollment_id).order_by(GradeSnapshot.enrollment_id, GradeSnapshot.time.desc())
 
     snapshots = db.session.execute(query).scalars().all()
 
