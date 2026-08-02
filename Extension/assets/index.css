@@ -31,10 +31,39 @@ body {
     font-family: "DMSans", "Commissioner", "Times New Roman";
     width: 550px;
     height: 550px;
+    margin: 0px;
+    padding: 0px;
     background-color: var(--first-color);
 }
 
 .invisible {
     display: none;
     visibility: collapse;
+}
+
+.connected-icon {
+    position: absolute;
+    left: 516.88px;
+    top: 525px;
+    z-index: 1;
+}
+
+.disconnected-icon {
+    position: absolute;
+    left: 200px;
+    top: 216px;
+    z-index: 1;
+}
+
+.gpa-display {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    font-size: 14px;
+    color: var(--accent-color);
+    margin: 0px;
+    -webkit-user-select: none; 
+    -moz-user-select: none; 
+    -ms-user-select: none; 
+    user-select: none;
 }
