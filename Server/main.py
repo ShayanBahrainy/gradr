@@ -263,7 +263,6 @@ def verify():
         return jsonify(response)
     abort(400)
 
-@limiter.limit("1/minute")
 @app.route("/authenticate/check/", methods=["POST"])
 @limiter.limit("30/minute")
 def authentication_check():
@@ -278,7 +277,6 @@ def authentication_check():
         return False
     return True
 
-@limiter.limit("1/minute")
 @app.route("/authenticate/", methods=["POST"])
 @limiter.limit("30/minute")
 def authenticate():
@@ -354,7 +352,6 @@ def revoke_authentication():
     return '', 200
 
 @app.route("/upload/course_data/", methods=["POST"])
-#@limiter.limit("1/minute")
 @check_authentication
 @limiter.limit("3/minute", key_func=get_user_id)
 def course_upload(authentication_key: AuthenticationKey):
@@ -393,7 +390,6 @@ def course_upload(authentication_key: AuthenticationKey):
     return '', 200
 
 @app.route("/upload/assignment_data/", methods=["POST"])
-@limiter.limit("1/minute")
 @check_authentication
 @limiter.limit("3/minute", key_func=get_user_id)
 def assignment_upload(authentication_key: AuthenticationKey):
@@ -435,10 +431,7 @@ def assignment_upload(authentication_key: AuthenticationKey):
 
     return '', 200
 
-
-@app.route("/search/course/<search_query>/", methods=["POST"])
-@limiter.limit("20/minute")
-@limiter.limit("1/second")
+@app.route("/search/course/", methods=["POST"])
 @check_authentication
 @limiter.limit("20/minute", key_func=get_user_id)
 @limiter.limit("2/second", key_func=get_user_id)
@@ -457,14 +450,12 @@ def course_search(authentication_key: AuthenticationKey):
 
     courses_data = []
     for course in courses:
-        courses_data.append(course_info(course.id))
+        courses_data.append(course_data(course))
 
     return courses_data
     
 
 @app.route("/course/<course_id>/", methods=["POST"])
-@limiter.limit("20/minute")
-@limiter.limit("5/second")
 @check_authentication
 @limiter.limit("30/minute", key_func=get_user_id)
 @limiter.limit("5/second", key_func=get_user_id)
@@ -487,7 +478,7 @@ def course_info(authentication_key: AuthenticationKey, course_id: str):
 @limiter.limit("10/minute", key_func=get_user_id)
 @limiter.limit("1/second", key_func=get_user_id)
 def fetch_gpa(authentication_key: AuthenticationKey):
-    query = select(GradeSnapshot.numeric).join(GradeSnapshot.enrollment).where(Enrollment.course_id == course.id).distinct(GradeSnapshot.enrollment_id).order_by(GradeSnapshot.enrollment_id, GradeSnapshot.time.desc())
+    query = select(GradeSnapshot).join(GradeSnapshot.enrollment).where(Enrollment.student_id == authentication_key.student_id).distinct(GradeSnapshot.enrollment_id).order_by(GradeSnapshot.enrollment_id, GradeSnapshot.time.desc())
 
     snapshots = db.session.execute(query).scalars().all()
 
