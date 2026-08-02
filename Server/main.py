@@ -414,23 +414,38 @@ def course_info(authentication_key: AuthenticationKey, course_id: str):
     if not course:
         abort(404)
 
-    subq = select(GradeSnapshot.numeric).join(GradeSnapshot.enrollment).where(Enrollment.course_id == course.id).distinct(GradeSnapshot.enrollment_id).order_by(GradeSnapshot.enrollment_id, GradeSnapshot.time.desc()).subquery()
-    
-    query = select(func.avg(subq.c.numeric), func.count()).select_from(subq)
+    subq = select(GradeSnapshot.numeric).join(GradeSnapshot.enrollment).where(Enrollment.course_id == course.id).distinct(GradeSnapshot.enrollment_id).order_by(GradeSnapshot.enrollment_id, GradeSnapshot.time.desc())
 
-    numeric, sample_count = db.session.execute(query).one()
+    snapshots = db.session.execute(query).scalars().all()
 
-    course_data = {
-        "name": course.name,
-        "id": course.id,
-        "teacher_name": course.teacher_name,
-        "numeric": numeric or 0.0,
-        "sample_count": sample_count or 0,
-        "letter": numeric_to_letter_grade(numeric or 0.0),
+    counted = 0
+    points = 0
+    bonus = 0
+    for snapshot in snapshots:
+        letter = (snapshot.letter or "").strip()
+        if letter in letter_to_gpa_points:
+            counted += 1
+            points += letter_to_gpa_points[letter]
+            if gets_bonus(snapshot.enrollment.course.name):
+                bonus += 1
+
+    result = {
+        "weighted": round((points + bonus) / counted if counted != 0 else 0, 2),
+        "unweighted": round((points / counted) if counted != 0 else 0, 2),
     }
 
-    return course_data
+    return result
 
+@app.route("/privacy.txt")
+@limiter.limit("10/minute")
+@limiter.limit("1/second")
+def privacy_policy():
+    return send_file('privacy.txt')
+
+@app.route("/generate_204")
+@limiter.limit("60/minute")
+def generate_204():
+    return Response(status=204)
 
 if __name__ == "__main__":
     db.init_app(app)

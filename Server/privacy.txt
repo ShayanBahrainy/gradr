@@ -1,0 +1,21 @@
+This document dictates how gradr uses your data, please read carefully. By using gradr services, you accept the handling, and collection of your data as follows.
+
+Last Modified: 25 July 2026
+
+Data Collection 
+While using gradr, the following data may be collected:
+Personally Identifiable Information (name, email, etc.)
+Academic Data (grades, assignment scores, class list, gpa, etc.)
+Usage Data (usage time, page views, habits, etc.)
+
+Data usage
+We will use this data to provide (1) maintain the Confidentiality, Integrity, and Availability of the service (CIA), (2) run the service, and provide grade-related statistics, and information, (3) analyze your usage of the service. We will not sell, or otherwise transfer your data to third parties, without further notice. A transfer is defined as data collected, or stored by gradr being copied or relocated elsewhere. Data collected by a third party is subject to their privacy policy and clause 3. Data may be retained indefinitely until a deletion request is received.
+
+3rd parties
+Your data may be collected by third parties, mainly to provide analytics, or other supporting services. These activities are pursuant to their own privacy policies. We will not directly transfer information to third parties, but their programs may be present in our services.
+
+Deletion
+You may submit a request to delete your data via email to hi@gradr.aurorii.com, we will try our best to process requests within 30 business days.
+
+Modifications
+When this policy is updated, we will modify the timestamp at the top. We may or may not at our discretion send an email notification. By continuing to use our services, you accept the most current version of the policy.
