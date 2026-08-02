@@ -2,6 +2,8 @@ const NUM_DIGITS = 6;
 
 let current_email;
 
+let CONNECTED;
+
 function submitEmailCode() {
     let email_code = "";
     for (let i = 1; i <= NUM_DIGITS; i++) {
@@ -30,23 +32,48 @@ function openPage(page) {
     })
 }
 
+async function checkConnection() {
+    const connected = await chrome.runtime.sendMessage({type: "check_connection"});
+    
+    CONNECTED = connected;
+
+    if (connected) {
+        document.querySelector(".connected-icon").classList.remove("invisible");
+        document.querySelector(".disconnected-icon").classList.add("invisible");
+    }
+    else {
+        document.querySelector(".disconnected-icon").classList.remove("invisible");
+        document.querySelector(".connected-icon").classList.add("invisible");
+    }
+
+    setTimeout(checkConnection, 60 * 1000);
+}
+
 window.addEventListener("DOMContentLoaded", async function () {
-    chrome.runtime.sendMessage({type:"check_authentication"}, (response) => {
+
+    await checkConnection();
+
+    if (CONNECTED) {
+        const response = await chrome.runtime.sendMessage({type:"check_authentication"});
         if (response.result) {
             document.getElementById("front-menu").classList.toggle("invisible");
         }
         else {
             document.getElementById("login-button").classList.toggle("invisible");
         }
-    })
+
+        const gpa = await chrome.runtime.sendMessage({type: "fetch_gpa"});
+        if (gpa != null) {
+            document.querySelector(".gpa-display").innerText = "GPA: " + gpa.unweighted + "/" + gpa.weighted;
+            document.querySelector(".gpa-display").classList.remove("invisible");
+        }
+    }
 
     document.getElementById("login-button").addEventListener("click", function () {
         chrome.tabs.create({url: "https://portals.veracross.com/oakwood/login/"});
     })
 
     document.getElementById("classes-button").addEventListener("click", function () {
-        document.getElementById("front-menu").classList.toggle("invisible");
-        document.getElementById("classes-screen").classList.toggle("invisible");
         openPage("html/classes.html");
     })
 
