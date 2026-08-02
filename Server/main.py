@@ -163,7 +163,40 @@ def numeric_to_letter_grade(numeric: float) -> str:
         return 'D-'
     return 'F'
 
-@limiter.limit("1/minute")
+def get_user_id() -> int:
+    if "authentication_key" not in request.json:
+        abort(400)
+
+    if len(request.json["authentication_key"]) != 36:
+        abort(400)
+    
+    query = select(AuthenticationKey).where(AuthenticationKey.key == request.json["authentication_key"])
+
+    authentication_key = db.session.execute(query).scalars().one_or_none()
+    if not authentication_key:
+        abort(400)
+
+    return authentication_key.student_id
+
+def course_data(course: Course) -> dict:
+    subq = select(GradeSnapshot.numeric).join(GradeSnapshot.enrollment).where(Enrollment.course_id == course.id).distinct(GradeSnapshot.enrollment_id).order_by(GradeSnapshot.enrollment_id, GradeSnapshot.time.desc()).subquery()
+    
+    query = select(func.avg(subq.c.numeric), func.count()).select_from(subq)
+
+    numeric, sample_count = db.session.execute(query).one()
+
+    course_data = {
+        "name": course.name,
+        "id": course.id,
+        "teacher_name": course.teacher_name,
+        "numeric": numeric or 0.0,
+        "sample_count": sample_count or 0,
+        "letter": numeric_to_letter_grade(numeric or 0.0),
+    }
+
+    return course_data
+
+
 @app.route("/authenticate/verify/", methods=["POST"])
 @limiter.limit("30/minute")
 def verify():
