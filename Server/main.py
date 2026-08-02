@@ -1,4 +1,4 @@
-from flask import Flask, request, make_response, jsonify, abort
+from flask import Flask, Response, request, make_response, jsonify, abort, send_file
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -130,12 +130,30 @@ def check_authentication(func: function) -> function:
         if len(request.json["authentication_key"]) != 36:
             abort(400)
 
-        authentication_key = db.session.execute(select(AuthenticationKey).where(AuthenticationKey.key == request.json["authentication_key"])).one_or_none()
+        authentication_key = db.session.execute(select(AuthenticationKey).where(AuthenticationKey.key == request.json["authentication_key"])).scalar_one_or_none()
         if not authentication_key:
             abort(401)
 
         return func(authentication_key, *args, **kargs)
     return wrapped
+
+letter_to_gpa_points = {
+    'A': 4.00,
+    'A-': 3.70,
+    'B+': 3.30,
+    'B': 3.00,
+    'B-': 2.70,
+    'C+': 2.30,
+    'C': 2.00,
+    'C-': 1.70,
+    'D+': 1.30,
+    'D': 1.00,
+    'D-': 0.70,
+    'F': 0.00,
+}
+
+def gets_bonus(class_name: str) -> bool:
+    return 'ap' in class_name.lower() or 'honors' in class_name.lower()
 
 def numeric_to_letter_grade(numeric: float) -> str:
     numeric = round(numeric)
@@ -424,7 +442,12 @@ def assignment_upload(authentication_key: AuthenticationKey):
 @check_authentication
 @limiter.limit("20/minute", key_func=get_user_id)
 @limiter.limit("2/second", key_func=get_user_id)
-def course_search(authentication_key: AuthenticationKey, search_query: str):
+def course_search(authentication_key: AuthenticationKey):
+    if "query" not in request.args or request.args["query"].strip() == "":
+        return []
+
+    search_query = request.args["query"].strip()
+
     name_query = select(Course).where(Course.name.ilike(f'%{search_query}%'))
     teacher_query = select(Course).where(Course.teacher_name.ilike(f'%{search_query}%'))
 
