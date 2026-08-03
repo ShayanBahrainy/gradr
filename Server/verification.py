@@ -63,9 +63,11 @@ class Verifier:
     def complete_verification(self, code: str, email: str):
         if not self.requests.__contains__(code):
             verification =  Verification(Verification.NOT_FOUND)
-        if self.requests[code][0] != email:
+            return verification
+        elif self.requests[code][0] != email:
             verification = Verification(Verification.NOT_FOUND)
-        if self.requests[code][1] - time.time() > 60 * 10:
+            return verification
+        elif self.requests[code][1] - time.time() > 60 * 10:
             verification = Verification(Verification.EXPIRED)
             del self.requests[code]
             del self.email_to_code[email]
