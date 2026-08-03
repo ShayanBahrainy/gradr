@@ -121,12 +121,6 @@ function openPage(page) {
     })
 }
 
-function toggleRemove(ev) {
-    const element = ev.target;
-    
-    console.log(element);
-}
-
 document.addEventListener("DOMContentLoaded", () => {
     let timer
     document.getElementById('search-field').addEventListener("input", (ev) => {
@@ -139,7 +133,7 @@ document.addEventListener("DOMContentLoaded", () => {
     })
 
     document.addEventListener("contextmenu", (ev) => {
-        //ev.preventDefault();
+        ev.preventDefault();
         document.getElementById("context-menu").style.left = `${ev.pageX}px`;
         document.getElementById("context-menu").style.top = `${ev.pageY}px`;
 
@@ -198,7 +192,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.getElementById("context-down").addEventListener("click", function(){
-        console.log(this);
         chrome.runtime.sendMessage({type: "down_class", id: this.dataset.id});
 
         const saved_classes = document.getElementById("saved-classes");
@@ -218,7 +211,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const element = document.getElementById("result-class-"+i);
         element.querySelector(".buttons-holder > .add-button").addEventListener("click", saveClass);
         element.querySelector(".buttons-holder > .remove-button").addEventListener("click", removeClass);
-        element.addEventListener("dblclick", toggleRemove);
     }
     loadSavedClasses();
 })
