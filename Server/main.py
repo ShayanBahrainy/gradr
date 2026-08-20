@@ -228,6 +228,25 @@ def course_data(course: Course) -> dict:
 
     return course_data
 
+def assignment_data(assignment: Assignment) -> dict:
+    subq = select(ScoreSnapshot.raw_score).join(ScoreSnapshot.score).where(Score.assignment_id == assignment.id).distinct(ScoreSnapshot.score_id).order_by(ScoreSnapshot.score_id, ScoreSnapshot.time.desc()).subquery()
+    query = select(func.avg(subq.c.raw_score), func.count()).select_from(subq)
+
+    score_avg, sample_count = db.session.execute(query).one()
+
+    assignment_data = {
+        "id": assignment.id,
+        "description": assignment.description,
+        "notes": assignment.notes,
+        "course_id": assignment.course_id,
+        "course_name": assignment.course.name,
+        "date": assignment.date,
+        "points_possible": assignment.points_possible,
+        "score_avg": score_avg or 0.0,
+        "sample_count": sample_count or 0,
+    }
+
+    return assignment_data
 
 @app.route("/authenticate/verify/", methods=["POST"])
 @limiter.limit("30/minute")
@@ -242,13 +261,16 @@ def verify():
 
     result = verifier.complete_verification(code, email)
     if result.status == Verification.NOT_FOUND:
-        abort(400)
+        response = {
+            "result": "Not Found"
+        }
+        return response
     
     if result.status == Verification.EXPIRED:
         response = {
             "result" : "Expired"
         }
-        return jsonify(response)
+        return response
     
     if result.status == Verification.VERIFIED:
 
@@ -466,7 +488,7 @@ def course_search(authentication_key: AuthenticationKey):
     name_query = select(Course).where(Course.name.ilike(f'%{search_query}%'))
     teacher_query = select(Course).where(Course.teacher_name.ilike(f'%{search_query}%'))
 
-    query = union(name_query, teacher_query)
+    query = union(name_query, teacher_query).limit(5)
 
     courses: list[Course] = db.session.execute(query).all()
 
@@ -495,10 +517,56 @@ def course_info(authentication_key: AuthenticationKey, course_id: str):
 
     return course_data(course)
 
+@app.route("/search/assignment/", methods=["POST"])
+@check_authentication
+@limiter.limit("20/minute", key_func=get_user_id)
+@limiter.limit("2/second", key_func=get_user_id)
+def assignment_search(authentication_key: AuthenticationKey):
+    if "query" not in request.args or request.args["query"].strip() == "":
+        return []
+
+    search_query = request.args["query"].strip()
+
+    course_name_query = select(Assignment.id).join(Assignment.course).where(Course.name.ilike(f'%{search_query}%'))
+
+    notes_query = select(Assignment.id).where(Assignment.notes.ilike(f'%{search_query}%'))
+
+    description_query = select(Assignment.id).where(Assignment.description.ilike(f'%{search_query}%'))
+
+    subquery = union(course_name_query, notes_query, description_query).limit(5).subquery()
+
+    assignments: list[Assignment] = db.session.scalars(
+        select(Assignment).where(Assignment.id.in_(select(subquery)))
+    ).all()
+
+    assignments_data = []
+    for assignment in assignments:
+        assignments_data.append(assignment_data(assignment))
+
+    return assignments_data
+
+@app.route("/assignment/<assignment_id>/", methods=["POST"])
+@check_authentication
+@limiter.limit("70/minute", key_func=get_user_id)
+@limiter.limit("10/second", key_func=get_user_id)
+def assignment_info(authentication_key: AuthenticationKey, assignment_id: str):
+    try:
+        assignment_id = int(assignment_id)
+    except:
+        abort(400)
+    
+    query = select(Assignment).where(Assignment.id == assignment_id)
+
+    assignment: Assignment = db.session.execute(query).scalars().one_or_none()
+    if not assignment:
+        abort(404)
+
+    return assignment_data(assignment)
+
 @app.route("/student/gpa/", methods=["POST"])
 @check_authentication
 @limiter.limit("10/minute", key_func=get_user_id)
-@limiter.limit("1/second", key_func=get_user_id)
+@limiter.limit("2/second", key_func=get_user_id)
 def fetch_gpa(authentication_key: AuthenticationKey):
     query = select(GradeSnapshot).join(GradeSnapshot.enrollment).where(Enrollment.student_id == authentication_key.student_id).distinct(GradeSnapshot.enrollment_id).order_by(GradeSnapshot.enrollment_id, GradeSnapshot.time.desc())
 
@@ -524,7 +592,7 @@ def fetch_gpa(authentication_key: AuthenticationKey):
 
 @app.route("/privacy.txt")
 @limiter.limit("10/minute")
-@limiter.limit("1/second")
+@limiter.limit("2/second")
 def privacy_policy():
     return send_file('privacy.txt')
 
@@ -533,8 +601,9 @@ def privacy_policy():
 def generate_204():
     return Response(status=204)
 
+db.init_app(app)
+with app.app_context():
+    db.create_all()
+
 if __name__ == "__main__":
-    db.init_app(app)
-    with app.app_context():
-        db.create_all()
     app.run()
