@@ -94,7 +94,21 @@ class Score(db.Model):
     def points_possible(self):
         return self.assignment.points_possible
     
+
+class ScoreSnapshot(db.Model):
+    __tablename__ = "score_snapshots"
+    id = Column(Integer, primary_key=True)
+
+    score_id = Column(Integer, ForeignKey('scores.id'), nullable=False)
+    score = relationship('Score', backref='score_snapshots')
+
+    @property
+    def points_possible(self):
+        return self.score.points_possible
+
     raw_score = Column(Float, nullable=False)
+
+    time = Column(DateTime, server_default=func.now())
 
 class GradeSnapshot(db.Model):
     __tablename__ = "grade_snapshots"
@@ -410,6 +424,11 @@ def assignment_upload(authentication_key: AuthenticationKey):
             
             db.session.add(assignment)
 
+        assignment.description = score_data["assignment_description"]
+        assignment.notes = score_data["assignment_notes"]
+        assignment.points_possible = score_data["points_possible"]
+        assignment.date = score_data["date"]
+
         score = db.session.query(Score).filter(Score.id == score_data["id"]).one_or_none()
         if not score:
             score = Score()
@@ -419,13 +438,16 @@ def assignment_upload(authentication_key: AuthenticationKey):
             score.student_id = authentication_key.student_id
 
             db.session.add(score)
-        
-        score.raw_score = score_data["raw_score"]
 
-        assignment.description = score_data["assignment_description"]
-        assignment.notes = score_data["assignment_notes"]
-        assignment.points_possible = score_data["points_possible"]
-        assignment.date = score_data["date"]
+        q = select(ScoreSnapshot).where(ScoreSnapshot.score_id == score.id).distinct(ScoreSnapshot.score_id).order_by(ScoreSnapshot.score_id, ScoreSnapshot.time.desc())
+        prev_snapshot = db.session.execute(q).scalar_one_or_none()
+        if prev_snapshot and prev_snapshot.raw_score == score_data["raw_score"]:
+            continue
+
+        snapshot = ScoreSnapshot()
+        snapshot.score_id = score.id
+        snapshot.raw_score = score_data["raw_score"]
+        db.session.add(snapshot)
         
     db.session.commit()
 
