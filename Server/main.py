@@ -456,7 +456,6 @@ def assignment_upload(authentication_key: AuthenticationKey):
             score = Score()
             score.assignment_id = assignment.id
             score.id = score_data["id"]
-            score.raw_score = score_data["raw_score"]
             score.student_id = authentication_key.student_id
 
             db.session.add(score)
