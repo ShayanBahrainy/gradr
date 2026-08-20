@@ -135,7 +135,7 @@ class AuthenticationKey(db.Model):
     def generate_key() -> str:
         return str(uuid.uuid4())
 
-def check_authentication(func: function) -> function:
+def check_authentication(func):
     @functools.wraps(func)
     def wrapped(*args, **kargs):
         if "authentication_key" not in request.json:
