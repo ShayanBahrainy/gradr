@@ -40,6 +40,8 @@ function displayResults(response) {
         _display_result(element, result, saved);
 
         i++;
+
+        if (i == 6) break;
     }
 
 
@@ -88,7 +90,7 @@ function search(searchElement) {
         return;
     };
 
-    chrome.runtime.sendMessage({type: "search", query: searchElement.value.trim()}, displayResults);
+    chrome.runtime.sendMessage({type: "search_classes", query: searchElement.value.trim()}, displayResults);
 }
 
 function saveClass(ev) {

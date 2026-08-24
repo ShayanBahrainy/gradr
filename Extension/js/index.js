@@ -8,17 +8,20 @@ function submitEmailCode() {
     let email_code = "";
     for (let i = 1; i <= NUM_DIGITS; i++) {
         const digit_element = document.getElementById("digit-" + i);
-        if (parseInt(digit_element.value) == NaN) return;
+        if (isNaN(parseInt(digit_element.value))) return;
         
         email_code += digit_element.value;
     }
 
+    document.getElementById("verify-code-error").innerText = "";
+
     chrome.runtime.sendMessage({type:"submit_code", code: email_code, email: current_email}, (response) => {
         if (response.result == "AUTHENTICATED") {
-            document.getElementById("verify-code").classList.toggle("invisible");
+            document.getElementById("verify-screen").classList.add("invisible");
+            document.getElementById("front-menu").classList.remove("invisible");
         }
         else {
-            document.getElementById("verify-code-error").value = response.result;
+            document.getElementById("verify-code-error").innerText = response.result;
         }
     });
 
@@ -57,15 +60,15 @@ window.addEventListener("DOMContentLoaded", async function () {
         const response = await chrome.runtime.sendMessage({type:"check_authentication"});
         if (response.result) {
             document.getElementById("front-menu").classList.toggle("invisible");
+
+            const gpa = await chrome.runtime.sendMessage({type: "fetch_gpa"});
+            if (gpa != null) {
+                document.querySelector(".gpa-display").innerText = "GPA: " + gpa.unweighted + "/" + gpa.weighted;
+                document.querySelector(".gpa-display").classList.remove("invisible");
+            }
         }
         else {
-            document.getElementById("login-button").classList.toggle("invisible");
-        }
-
-        const gpa = await chrome.runtime.sendMessage({type: "fetch_gpa"});
-        if (gpa != null) {
-            document.querySelector(".gpa-display").innerText = "GPA: " + gpa.unweighted + "/" + gpa.weighted;
-            document.querySelector(".gpa-display").classList.remove("invisible");
+            document.getElementById("front-page").classList.toggle("invisible");
         }
     }
 
@@ -77,14 +80,46 @@ window.addEventListener("DOMContentLoaded", async function () {
         openPage("html/classes.html");
     })
 
+    document.getElementById("assignments-button").addEventListener("click", function () {
+        openPage("html/assignments.html");
+    })
+
+    document.querySelector(".privacy-policy").addEventListener("click", function () {
+        chrome.runtime.sendMessage({type: "privacy_policy"});
+    })
+
+
+    for (let i = 1; i <= NUM_DIGITS; i++) {
+        if (i == 1) {
+            document.getElementById("digit-" + i).addEventListener("paste", function (ev) {
+                ev.preventDefault();
+
+                const paste = ev.clipboardData.getData("text/plain").trim();
+                if (paste.length == NUM_DIGITS) {
+                    for (let j = 1; j <= NUM_DIGITS; j++) {
+                        document.getElementById("digit-" + j).value = paste[j - 1];
+                    }
+                    document.getElementById("digit-" + NUM_DIGITS).focus();
+                    submitEmailCode();
+                }
+            })
+        }
+        else {
+            document.getElementById("digit-" + i).addEventListener("paste", function (ev) {
+                ev.preventDefault();
+            })
+        }
+    }
+
     for (const element of document.getElementsByClassName("digit")) {
         element.addEventListener("input", function (ev) {
+            if (ev.target.value == "") return;
             let direction = 1;
             if (ev.target.value.length == 0) direction = -1;
 
             const num = parseInt(element.id.split('-')[1]);
 
-            if (num == 6) {
+            if (num == NUM_DIGITS) {
                 submitEmailCode();
             }
 
@@ -103,9 +138,9 @@ window.addEventListener("DOMContentLoaded", async function () {
         chrome.runtime.sendMessage({type:"begin_authentication"}, (response) => {
             if (response.result == "Success") {
                 current_email = response.email;
-                document.getElementById("email-code-label").innerText = `Please enter the code sent to ${current_email}`;
-                document.getElementById("verify-code").classList.toggle("invisible"); //Turn on verify code menu
-                document.getElementById("login-button").classList.toggle("invisible"); //Turn off "Login With Veracross" screen
+                document.getElementById("email-code-label").innerHTML = `please enter the code from <span>${current_email}</span>`;
+                document.getElementById("verify-screen").classList.remove("invisible"); //Turn on verify code menu
+                document.getElementById("front-page").classList.add("invisible"); //Turn off front login screen
             }
             else if (response.result == "Failure" && response.reason == "LOGIN_NEEDED") {
                 console.error("Authentication attempted before Veracross login!");
@@ -115,8 +150,9 @@ window.addEventListener("DOMContentLoaded", async function () {
     else if (data["authenticationKey"] == undefined && data["lastAuthenticated"] && now - 10 * 60 < data["lastAuthenticated"]) {
         console.log("Resuming authentication session...")
         current_email = (await chrome.storage.local.get(["lastEmail"]))["lastEmail"];
-        document.getElementById("email-code-label").innerText = `Please enter the code sent to ${current_email}`;
-        document.getElementById("verify-code").classList.toggle("invisible");
+        document.getElementById("email-code-label").innerHTML = `please enter the code from <span>${current_email}</span>`;
+        document.getElementById("verify-screen").classList.remove("invisible");
+        document.getElementById("front-page").classList.add("invisible");
     }
 
 })
