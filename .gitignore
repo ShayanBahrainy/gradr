@@ -3,3 +3,4 @@ Extension/node_modules/*
 .vscode
 Server/__pycache__
 *.zip
+*.dump

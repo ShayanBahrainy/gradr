@@ -1,4 +1,5 @@
-const SERVER_BASE_URL = "http://localhost:5000"
+const SERVER_BASE_URL = "https://api.aurorii.com";
+const PRIVACY_URL = "https://gradr.aurorii.com/privacy.txt";
 
 function getUserId() {
     let resolve;
@@ -11,7 +12,7 @@ function getUserId() {
 
     const request = new Request("https://portals.veracross.com/oakwood/student/",
         {
-            method: "h",
+            method: "head",
             credentials: "include",
             redirect: "manual",
             cache: "no-store",
@@ -91,7 +92,7 @@ async function getAssignmentData(enrollment_pk, class_pk) {
     
     const scores = [];
     for (const assignmentData of json['assignments']) {
-        if (assignmentData['completion_status'] != 'Complete' && assignmentData['completion_status'] != 'Not Turned In') continue;
+        if (assignmentData['completion_status'] != 'Complete' && assignmentData['completion_status'] != 'Not Turned In' && assignmentData['completion_status'] != 'Pending') continue;
         const score = {
             id: assignmentData['score_id'],
             assignment_description: assignmentData['assignment_description'],
@@ -190,6 +191,9 @@ function completeAuthentication(code, email) {
             const data = await response.json();
             if (data["result"] == "Expired") {
                 reject("EXPIRED");
+            }
+            else if (data["result"] == "Not Found") {
+                reject("NOT_FOUND");
             }
             else if (data["result"] == "Verified") {
                 resolve(data["authentication_key"]);
@@ -356,6 +360,33 @@ async function loadClass(class_id) {
     }
 }
 
+async function loadAssignment(class_id) {
+    if (!await checkAuthentication()) return;
+    
+    const authentication_key = (await chrome.storage.local.get(["authenticationKey"])).authenticationKey;
+
+    const request = new Request(SERVER_BASE_URL + "/assignment/" + class_id + "/", {
+        method: "POST",
+        body: JSON.stringify({
+            authentication_key: authentication_key
+        }),
+
+        headers: {
+            "Content-Type": "application/json"
+        }
+
+    });
+
+    const response = await fetch(request);
+
+    if (response.ok) {
+        return await response.json();
+    }
+    else {
+        throw new Error(await response.text());
+    }
+}
+
 async function loadSavedClasses() {
     let saved_classes = (await chrome.storage.local.get(["savedClasses"])).savedClasses ?? [];
 
@@ -367,7 +398,18 @@ async function loadSavedClasses() {
     return data;
 }
 
-async function search(searchQuery) {
+async function loadSavedAssignments() {
+    let saved_assignments = (await chrome.storage.local.get(["savedAssignments"])).savedAssignments ?? [];
+
+    let data = []
+    for (let assignment_id of saved_assignments) {
+        data.push(await loadAssignment(assignment_id));
+    }
+
+    return data;
+}
+
+async function search_classes(searchQuery) {
     if (!await checkAuthentication()) return;
 
     const authentication_key = (await chrome.storage.local.get(["authenticationKey"])).authenticationKey;
@@ -400,6 +442,39 @@ async function search(searchQuery) {
 
 }
 
+async function search_assignments(searchQuery) {
+    if (!await checkAuthentication()) return;
+
+    const authentication_key = (await chrome.storage.local.get(["authenticationKey"])).authenticationKey;
+
+    const request = new Request(SERVER_BASE_URL + "/search/assignment/?query=" + searchQuery, {
+        method: "POST",
+        body: JSON.stringify({
+            authentication_key: authentication_key
+        }),
+
+        headers: {
+            "Content-Type": "application/json"
+        }
+
+    });
+
+    const response = await fetch(request);
+
+    if (response.ok) {
+        const data = {
+            results: await response.json(),
+            saved: (await chrome.storage.local.get(["savedAssignments"])).savedAssignments ?? [],
+        }
+
+        return data;
+    }
+    else {
+        throw new Error(await response.text());
+    }
+
+}
+
 async function saveClass(id) {
     const saved_classes = (await chrome.storage.local.get("savedClasses")).savedClasses ?? [];
 
@@ -412,12 +487,32 @@ async function saveClass(id) {
     chrome.storage.local.set({savedClasses: saved_classes});
 }
 
+async function saveAssignment(id) {
+    const saved_assignments = (await chrome.storage.local.get("savedAssignments")).savedAssignments ?? [];
+
+    if (saved_assignments.length == 5) {
+        saved_assignments.pop();
+    }
+
+    saved_assignments.push(parseInt(id));
+
+    chrome.storage.local.set({savedAssignments: saved_assignments});
+}
+
 async function removeClass(id) {
     let saved_classes = (await chrome.storage.local.get("savedClasses")).savedClasses ?? [];
     id = parseInt(id);
     saved_classes = saved_classes.filter((clss) => clss != id);
 
     chrome.storage.local.set({savedClasses: saved_classes});
+}
+
+async function removeAssignment(id) {
+    let saved_assignments = (await chrome.storage.local.get("savedAssignments")).savedAssignments ?? [];
+    id = parseInt(id);
+    saved_assignments = saved_assignments.filter((clss) => clss != id);
+
+    chrome.storage.local.set({savedAssignments: saved_assignments});
 }
 
 async function checkConnection() {
@@ -460,7 +555,7 @@ async function fetchGPA() {
     return null;
 }
 
-async function shiftUp(id) {
+async function shiftUpClass(id) {
     const saved_classes = (await chrome.storage.local.get("savedClasses")).savedClasses ?? [];
 
     for (let i = 0; i < saved_classes.length; i++) {
@@ -475,7 +570,22 @@ async function shiftUp(id) {
     chrome.storage.local.set({savedClasses: saved_classes});
 }
 
-async function shiftDown(id) {
+async function shiftUpAssignment(id) {
+    const saved_assignments = (await chrome.storage.local.get("savedAssignments")).savedAssignments ?? [];
+
+    for (let i = 0; i < saved_assignments.length; i++) {
+        if (saved_assignments[i] == id && i > 0){
+            const tmp = saved_assignments[i - 1];
+            saved_assignments[i - 1] = saved_assignments[i];
+            saved_assignments[i] = tmp;
+            break;
+        } 
+    }
+
+    chrome.storage.local.set({savedAssignments: saved_assignments});
+}
+
+async function shiftDownClass(id) {
     const saved_classes = (await chrome.storage.local.get("savedClasses")).savedClasses ?? [];
 
     for (let i = 0; i < saved_classes.length; i++) {
@@ -488,6 +598,25 @@ async function shiftDown(id) {
     }
 
     chrome.storage.local.set({savedClasses: saved_classes});
+}
+
+function openPrivacyPolicy() {
+    chrome.tabs.create({ url: PRIVACY_URL });
+}
+
+async function shiftDownAssignment(id) {
+    const saved_assignments = (await chrome.storage.local.get("savedAssignments")).savedAssignments ?? [];
+
+    for (let i = 0; i < saved_assignments.length; i++) {
+        if (saved_classes[i] == id && i < saved_assignments.length - 1){
+            const tmp = saved_assignments[i + 1];
+            saved_assignments[i + 1] = saved_assignments[i];
+            saved_assignments[i] = tmp;
+            break;
+        } 
+    }
+
+    chrome.storage.local.set({savedAssignments: saved_assignments});
 }
 
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
@@ -539,7 +668,16 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
                 sendResponse({result: "AUTHENTICATED"});
             },
             function (error) {
-                sendResponse({result: error});
+                console.log(error);
+                if (error == "EXPIRED") {
+                    sendResponse({result: "the verification code has expired"});
+                }
+                else if (error == "NOT_FOUND") {
+                    sendResponse({result: "the verification code was not correct"})
+                }
+                else if (error == "GENERAL_FAILURE") {
+                    sendResponse({result: "the code could not be verified"})
+                }
             }
         );
     }
@@ -548,13 +686,21 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
         loadSavedClasses().then(sendResponse);
     }
 
+    if (message.type == "load_assignments") {
+        loadSavedAssignments().then(sendResponse);
+    }
+
     if (message.type == "open_page") {
         sendResponse({result: "close"})
         setTimeout(openPage, 500, message.page);
     }
 
-    if (message.type == "search") {
-        search(message.query).then(sendResponse);
+    if (message.type == "search_classes") {
+        search_classes(message.query).then(sendResponse);
+    }
+
+    if (message.type == "search_assignments") {
+        search_assignments(message.query).then(sendResponse);
     }
 
     if (message.type == "check_connection") {
@@ -568,17 +714,37 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     if (message.type == "save_class") {
         saveClass(message.id);
     }
+
+    if (message.type == "save_assignment") {
+        saveAssignment(message.id);
+    }
     
     if (message.type == "remove_class") {
         removeClass(message.id);
     }
 
+    if (message.type == "remove_assignment") {
+        removeAssignment(message.id);
+    }
+
     if (message.type == "up_class") {
-        shiftUp(message.id);
+        shiftUpClass(message.id);
+    }
+
+    if (message.type == "up_assignment") {
+        shiftUpAssignment(message.id);
     }
 
     if (message.type == "down_class") {
-        shiftDown(message.id);
+        shiftDownClass(message.id);
+    }
+
+    if (message.type == "down_assignment") {
+        shiftDownAssignment(message.id);
+    }
+
+    if (message.type == "privacy_policy") {
+        openPrivacyPolicy();
     }
 
     return true;
