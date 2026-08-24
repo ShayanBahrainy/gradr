@@ -1,0 +1,188 @@
+.search-field {
+    position: absolute;
+    left: 25px;
+    top: 42px;
+
+    width: 500px;
+    height: 40px;
+
+    border-radius: 5px;
+    border: none;
+    background-color: var(--third-color);
+
+    color: var(--base-color);
+
+    padding-left: 36px;
+    box-sizing: border-box;
+}
+
+.search-field:focus {
+    outline: none;
+}
+
+.search-icon {
+    position: absolute;
+
+    left: 491px;
+    top: 50px;
+}
+
+.back-button {
+    position: absolute;
+    left: 9px;
+    top: 11px;
+}
+
+.search-divider {
+    width: 100%;
+    
+    position: absolute;
+    left: 0px;
+    top: 105px;
+}
+
+.assignment {
+    width: 468px;
+    height: 60px;
+
+    background-color: var(--third-color);
+    color: var(--base-color);
+
+    border-radius: 2px;
+
+    filter: drop-shadow(0px 4px 15px rgba(0,0,0,25%));
+
+    display: flex;
+    align-items: center;
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+.assignments {
+    position: absolute;
+    top: 131px;
+    left: 25px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.left-group {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.right-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.subinfo {
+  padding: none;
+  display: flex;
+  flex-direction: column;
+  line-height: 0px;
+}
+
+.average-letter {
+    font-size: 21px;
+    color: var(--accent-color);
+    width: 24px; 
+    text-align: left;
+}
+
+.average-percent {
+    font-size: 18px;
+    width: 100px;
+}
+
+.people-count {
+    font-size: 7px;
+    margin-top: -1px;
+}
+
+.class-name {
+    font-size: 8px;
+}
+
+.description {
+    font-size: 16px;
+}
+
+.add-button {
+    display: block; 
+    margin: 0 auto;
+    position: absolute; 
+    inset: 0;
+}
+
+.remove-button {
+    display: block; 
+    margin: 0 auto;
+    position: absolute; 
+    inset: 0;
+}
+
+.no-result-icon {
+    position: absolute;
+    left: 264px;
+    top: 275px;
+}
+
+.no-result-text {
+    font-size: 18px;
+    color: var(--accent-color);
+    position: absolute;
+    left: 185px;
+    top: 294px;
+}
+
+.buttons-holder {
+    position: relative;
+    width: 18px;
+    height: 18px;
+}
+
+.context-menu {
+    position: absolute;
+
+    width: 100px;
+    height: 200px;
+
+    display: flex;
+    flex-direction: column;
+
+    background-color: var(--base-color);
+
+}
+
+.context-button {
+    width: 100px;
+    height: 50px;
+
+    background-color: var(--second-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--accent-color);
+}
+
+.context-up, .context-down, .context-delete {
+    border-bottom: 1px var(--base-color) inset;
+}
+
+.grey-out {
+    background-color: var(--base-color);
+    color: grey;
+}
+
+.assignment-search-icon {
+    position: absolute;
+
+    left: 33px;
+    top: 50px;
+}
