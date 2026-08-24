@@ -11,6 +11,9 @@
     background-color: var(--third-color);
 
     color: var(--base-color);
+
+    padding-left: 36px;
+    box-sizing: border-box;
 }
 
 .search-field:focus {
@@ -175,4 +178,11 @@
 .grey-out {
     background-color: var(--base-color);
     color: grey;
+}
+
+.class-search-icon {
+    position: absolute;
+
+    left: 33px;
+    top: 46px;
 }
