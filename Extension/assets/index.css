@@ -67,3 +67,15 @@ body {
     -ms-user-select: none; 
     user-select: none;
 }
+
+.privacy-policy {
+    position: absolute;
+
+    left: 9px;
+    top: 530px;
+
+    color: var(--accent-color);
+    text-decoration: none;
+
+    font-size: 11px;
+}
