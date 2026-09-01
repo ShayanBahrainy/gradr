@@ -21,7 +21,9 @@ import os
 
 load_dotenv()
 
-from verification import Verifier, Verification
+from verification import Verifier, Verification, send_deletion_confirmation, send_deletion_request, send_invite
+
+import hashlib
 
 class Base(DeclarativeBase):
   pass
@@ -37,6 +39,8 @@ limiter = Limiter(
 )
 
 verifier = Verifier()
+
+base_url = "http://127.0.0.1:5000"
 
 class Contribution(db.Model):
     __tablename__ = "contributions"
@@ -59,6 +63,17 @@ class View(db.Model):
     type = Column(String(20), nullable=False)
 
     time = Column(DateTime, server_default=func.now())
+
+class Invitation(db.Model):
+    __tablename__ = "invitations"
+    id = Column(Integer, primary_key=True)
+    email_hash = Column(String(64), nullable=False)
+
+    title = Column(String(50), nullable=False)
+
+    body = Column(String, nullable=False)
+
+    sent_time = Column(DateTime, server_default=func.now())
 
 class Student(db.Model):
     __tablename__ = "students"
@@ -654,6 +669,69 @@ def fetch_gpa(authentication_key: AuthenticationKey):
     }
 
     return result
+
+@app.route("/invitation/search/", methods=["POST"])
+@check_authentication
+@limiter.limit("1/second", key_func=get_user_id)
+@limiter.limit("5/minute", key_func=get_user_id)
+def fetch_invitation_logs(authentication_key: AuthenticationKey):
+    if authentication_key.student.email != os.environ.get("ADMIN_EMAIL"):
+        return abort(403)
+
+    if "email" not in request.json:
+        return abort(400)
+
+    if len(request.json["email"]) > 250:
+        return abort(400)
+
+    email_hash = hashlib.sha256(request.json["email"].encode("utf-8")).hexdigest()
+
+    q = select(Invitation).where(Invitation.email_hash == email_hash)
+
+    invites = db.session.execute(q).scalars().all()
+
+    invites_data = [{"time": invite.sent_time} for invite in invites]
+
+    return invites_data
+
+@app.route("/invitation/create/", methods=["POST"])
+@check_authentication
+@limiter.limit("1/second", key_func=get_user_id)
+@limiter.limit("5/minute", key_func=get_user_id)
+def create_invitation(authentication_key: AuthenticationKey):
+    if authentication_key.student.email != os.environ.get("ADMIN_EMAIL"):
+        return abort(403)
+
+    if "email" not in request.json:
+        return abort(400)
+
+    if len(request.json["email"]) > 250:
+        return abort(400)
+
+    if "title" not in request.json:
+        return abort(400)
+
+    if len(request.json["title"]) > 50:
+        return abort(400)
+
+    if "body" not in request.json:
+        return abort(400)
+
+    invitation = Invitation()
+
+    invitation.email_hash = hashlib.sha256(request.json["email"].encode('utf-8')).hexdigest()
+
+    invitation.title = request.json["title"]
+
+    invitation.body = request.json["body"]
+
+    db.session.add(invitation)
+
+    send_invite(request.json["email"], request.json["title"], request.json["body"])
+
+    db.session.commit()
+
+    return '', 200
 
 @app.route("/stats/viewers/")
 @limiter.limit("3/second")
