@@ -56,7 +56,7 @@ function _display_result(element, result, saved) {
     element.dataset.id = result["id"];
 
     element.querySelector(".left-group > .class-name").innerHTML = result["name"];
-    element.querySelector(".left-group > .teacher-name").innerHTML = result["teacher_name"];
+    element.querySelector(".left-group > .teacher-name").innerHTML = "Period " + result["period"] + ", " + result["teacher_name"];
     element.querySelector(".right-group > .subinfo > .average-percent").innerHTML = result["numeric"] + "%";
     element.querySelector(".right-group > .subinfo > .people-count").innerHTML = result["sample_count"] + (result["sample_count"] == 1 ? " person" : " people") + " reporting...";
 
@@ -74,7 +74,7 @@ function _display_saved(element, data) {
     element.classList.remove("invisible");
     
     element.querySelector(".left-group > .class-name").innerHTML = data["name"];
-    element.querySelector(".left-group > .teacher-name").innerHTML = data["teacher_name"];
+    element.querySelector(".left-group > .teacher-name").innerHTML = "Period " + data["period"] + ", " + data["teacher_name"];
     element.querySelector(".right-group > .subinfo > .average-percent").innerHTML = data["numeric"] + "%";
     element.querySelector(".right-group > .subinfo > .people-count").innerHTML = data["sample_count"] + (data["sample_count"] == 1 ? " person" : " people") + " reporting...";
     element.querySelector(".right-group .average-letter").innerHTML = data["letter"];
@@ -128,11 +128,14 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('search-field').addEventListener("input", (ev) => {
         if (timer) clearTimeout(timer);
         timer = setTimeout(search, 500, ev.target);
-    })
+    });
+
+    document.getElementById('search-field').focus();
+
 
     document.getElementById('back-button').addEventListener("click", () => {
         openPage('html/index.html');
-    })
+    });
 
     document.addEventListener("contextmenu", (ev) => {
         ev.preventDefault();
