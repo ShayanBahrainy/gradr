@@ -1,5 +1,6 @@
-const SERVER_BASE_URL = "https://api.aurorii.com";
-const PRIVACY_URL = "https://gradr.aurorii.com/privacy.txt";
+function clearStorage() {
+    chrome.storage.local.remove(["authenticationKey", "lastAuthenticated", "lastEmail"]);
+}
 
 function getUserId() {
     let resolve;
@@ -67,7 +68,8 @@ async function getCourseData() {
             class_name: courseData['class_name'],
             teacher_name: courseData['teacher_full_name'],
             numeric_grade: courseData['ptd_grade'],
-            letter_grade: courseData['ptd_letter_grade']
+            letter_grade: courseData['ptd_letter_grade'],
+            period: courseData['class_id'].charAt(courseData['class_id'].length - 1)
         };
 
         classes.push(course);
@@ -272,7 +274,9 @@ async function uploadCourseData(course_data) {
 
     });
 
-    fetch(request);
+    fetch(request).then(function (response) {
+        if (response.status == 401) clearStorage();
+    });
 }
 
 async function uploadAssignmentData(courses) {
@@ -298,7 +302,9 @@ async function uploadAssignmentData(courses) {
 
     });
 
-    fetch(request);
+    fetch(request).then(function (response) {
+        if (response.status == 401) clearStorage();
+    });
 }
 
 async function sync() {
@@ -544,6 +550,9 @@ async function fetchGPA() {
     })
 
     const response = await fetch(request);
+
+    if (response.status == 401) clearStorage();
+
 
     if (response.ok) {
         return await response.json();
