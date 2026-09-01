@@ -84,6 +84,7 @@ class Course(db.Model):
     id = Column(Integer, primary_key=True)
     name = Column(String(50), nullable=False)
     teacher_name = Column(String(50), nullable=False)
+    period = Column(String(1), nullable=False)
 
     first_seen = Column(Date, server_default=func.now())
 
@@ -246,6 +247,7 @@ def course_data(course: Course) -> dict:
         "numeric": numeric or 0.0,
         "sample_count": sample_count or 0,
         "letter": numeric_to_letter_grade(numeric or 0.0),
+        "period": course.period,
     }
 
     return course_data
@@ -262,6 +264,7 @@ def assignment_data(assignment: Assignment) -> dict:
         "notes": assignment.notes,
         "course_id": assignment.course_id,
         "course_name": assignment.course.name,
+        "period": assignment.course.period,
         "date": assignment.date,
         "points_possible": assignment.points_possible,
         "score_avg": score_avg or 0.0,
@@ -330,7 +333,7 @@ def authentication_check():
     if len(request.json["authentication_key"]) != 36:
         return False
 
-    authentication_key = db.session.execute(db.session.select(AuthenticationKey).filter_by(key=request.json["authentication_key"])).one_or_none()
+    authentication_key = db.session.execute(select(AuthenticationKey).filter_by(key=request.json["authentication_key"])).one_or_none()
     if not authentication_key:
         return False
     return True
@@ -428,6 +431,12 @@ def course_upload(authentication_key: AuthenticationKey):
                 course.id = course_data["class_pk"]
                 course.name = course_data["class_name"]
                 course.teacher_name = course_data["teacher_name"]
+
+                if len(course_data["period"]) > 1:
+                    return abort(400)
+                
+                course.period = course_data["period"]
+
 
                 db.session.add(course)
             
