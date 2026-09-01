@@ -79,3 +79,7 @@ body {
 
     font-size: 11px;
 }
+
+input:focus {
+    outline: none;
+}

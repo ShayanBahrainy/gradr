@@ -1,0 +1,153 @@
+.admin-header {
+    position: absolute;
+    
+    left: 123px;
+    top: 18px;
+
+    font-size: 36px;
+    color: var(--third-color);
+}
+
+.viewers-header {
+    position: absolute;
+
+    left: 26px;
+    top: 111px;
+
+    font-size: 24px;
+    color: var(--accent-color);
+
+}
+
+.viewers-value  {
+    position: absolute;
+
+    left: 86px;
+    top: 162px;
+
+    font-size: 25px;
+    
+    color: var(--third-color);
+}
+
+.contributors-header {
+    position: absolute;
+
+    left: 298px;
+    top: 111px;
+
+    font-size: 24px;
+    color: var(--accent-color);
+
+}
+
+.contributors-value  {
+    position: absolute;
+
+    left: 389px;
+    top: 162px;
+
+    font-size: 25px;
+    
+    color: var(--third-color);
+}
+
+.invitation-header {
+    position: absolute;
+
+    left: 173px;
+    top: 234px;
+
+    font-size: 30px;
+    color: var(--accent-color);
+
+    margin: 0px;
+}
+
+.deletion-header {
+    position: absolute;
+
+    left: 173px;
+    top: 463px;
+
+    font-size: 14px;
+    color: var(--third-color);
+
+    margin: 0px;
+}
+
+.deletion-input {
+    position: absolute;
+
+    left: 142px;
+    top: 490px;
+
+    width: 200px;
+    height: 20px;
+
+    background-color: var(--base-color);
+
+    border-radius: 5px;
+    border: none;
+
+    padding: 0px;
+
+    color: var(--second-color);
+}
+
+.deletion-button {
+    position: absolute;
+
+    left: 342px;
+    top: 490px;
+
+    width: 50px;
+    height: 20px;
+
+    background-color: var(--base-color);
+
+    border-radius: 5px;
+
+    color: var(--third-color);
+    border: none;
+
+    padding: 0px;
+}
+
+.invitation-input {
+    position: absolute;
+
+    left: 175px;
+    top: 293px;
+
+    width: 200px;
+    height: 20px;
+
+    background-color: var(--base-color);
+
+    border-radius: 5px;
+    border: none;
+
+    padding: 0px;
+
+    color: var(--second-color);
+}
+
+.invitation-button {
+    position: absolute;
+
+    left: 248px;
+    top: 326px;
+
+    width: 50px;
+    height: 20px;
+
+    background-color: var(--base-color);
+
+    border-radius: 5px;
+    border: none;
+
+    color: var(--accent-color);
+
+    padding: 0px;
+}
