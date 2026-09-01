@@ -77,4 +77,37 @@ class Verifier:
         del self.requests[code]
         del self.email_to_code[email]
         return verification
-        
+
+def send_deletion_request(deletion_link: str, email_address: str):
+    email = {}
+    email["to"] = email_address 
+    email["from"] = os.environ.get("RESEND_FROM_ADDRESS")
+
+    email["subject"] = "your deletion request"
+
+    email["html"] = f"<p>hello! <br> to complete your deletion request, click <a href=\"{deletion_link}\">here.</a> <br> once you click that link, your data is immediately, and irreversibly removed from our servers. <br> an email signature is kept for audit purposes. <br> sorry to see you go. </p>"
+
+    resend.Emails.send(email)
+
+def send_deletion_confirmation(email_address: str):
+    email = {}
+    email["to"] = email_address
+    email["from"] = os.environ.get("RESEND_FROM_ADDRESS")
+
+    email["subject"] = "your deletion confirmation"
+
+    email["html"] = f"<p>hello <br> this email confirms that besides an email signature, which is kept for audit purposes, your data has been removed from our servers. <br> sorry to see you go. </p>"
+
+    resend.Emails.send(email)
+
+def send_invite(email_address: str, title: str, body: str):
+    email = {}
+
+    email["to"] = email_address
+    email["from"] = os.environ.get("RESEND_FROM_ADDRESS")
+
+    email["subject"] = title
+
+    email["html"] = body
+
+    resend.Emails.send(email)
