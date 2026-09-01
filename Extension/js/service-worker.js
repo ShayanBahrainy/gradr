@@ -1,3 +1,9 @@
+//const SERVER_BASE_URL = "https://api.aurorii.com";
+//const PRIVACY_URL = "https://gradr.aurorii.com/privacy.txt";
+
+const PRIVACY_URL = "https://google.com";
+const SERVER_BASE_URL = "http://127.0.0.1:5000";
+
 function clearStorage() {
     chrome.storage.local.remove(["authenticationKey", "lastAuthenticated", "lastEmail"]);
 }
@@ -658,6 +664,60 @@ async function getContributors() {
     }
 }
 
+async function sendInvite(data) {
+    if (!(await checkAuthentication())) return;
+
+    const authentication_key = (await chrome.storage.local.get(["authenticationKey"])).authenticationKey;
+
+    const request = new Request(SERVER_BASE_URL + "/invitation/create/", {
+        method: "POST",
+        body: JSON.stringify({
+            authentication_key: authentication_key,
+            email: data.email,
+            body: data.body,
+            title: data.title,
+        }),
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    });
+
+    const response = await fetch(request);
+
+    if (response.ok) {
+        return await response.text();
+    }
+    else {
+        console.error(await response.text());
+    }
+}
+
+async function sendDeletion(data) {
+    if (!(await checkAuthentication())) return;
+
+    const authentication_key = (await chrome.storage.local.get(["authenticationKey"])).authenticationKey;
+
+    const request = new Request(SERVER_BASE_URL + "/deletion/create/", {
+        method: "POST",
+        body: JSON.stringify({
+            authentication_key: authentication_key,
+            email: data.email,
+        }),
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    });
+
+    const response = await fetch(request);
+
+    if (response.ok) {
+        return await response.json();
+    }
+    else {
+        console.error(await response.text());
+    }
+}
+
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     if (message.type == "user_id") {
         const response = {};
@@ -677,7 +737,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
     if (message.type == "check_authentication") {
         checkAuthentication().then( (response) => {
             sendResponse({result: response})
-    });
+        });
     }
     if (message.type == "begin_authentication") {
         beginAuthentication().then(
@@ -792,6 +852,15 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 
     if (message.type == "get_contributors") {
         getContributors().then(sendResponse);
+    }
+
+    if (message.type == "send_invite") {
+        sendInvite(message);
+    }
+
+    if (message.type == "send_deletion") {
+        console.log(3)
+        sendDeletion(message).then(sendResponse);
     }
 
     return true;
