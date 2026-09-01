@@ -1,3 +1,5 @@
+from operator import concat
+
 from flask import Flask, Response, request, make_response, jsonify, abort, send_file
 
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -8,7 +10,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, Date, String, ForeignKey, Float, DateTime, func, UniqueConstraint, select, union
+from sqlalchemy import Column, Integer, Date, String, ForeignKey, Float, DateTime, func, UniqueConstraint, select, text, union
 from sqlalchemy.orm import relationship
 
 from sqlalchemy.orm import DeclarativeBase
@@ -165,13 +167,29 @@ class AuthenticationKey(db.Model):
     key = Column(String(36), primary_key=True)
 
     student_id = Column(Integer, ForeignKey('students.id'), nullable=False)
-    student = relationship('Student')
+    student = relationship('Student', backref="authentication_keys")
 
     issued = Column(DateTime, server_default=func.now())
 
     @staticmethod
     def generate_key() -> str:
         return str(uuid.uuid4())
+
+class DeletionRequest(db.Model):
+    __tablename__ = "deletion_requests"
+    key = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey('students.id'), nullable=False)
+
+    student = relationship('Student', backref="deletion_requests")
+
+    verification_code = Column(String, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+class DeletionLog(db.Model):
+    __tablename__ = "deletion_logs"
+    key = Column(Integer, primary_key=True)
+    email_hash = Column(String, nullable=False)
+    deleted_at = Column(DateTime, server_default=func.now())
 
 def check_authentication(func):
     @functools.wraps(func)
@@ -670,6 +688,119 @@ def fetch_gpa(authentication_key: AuthenticationKey):
 
     return result
 
+@app.route("/deletion/create/", methods=["POST"])
+@check_authentication
+@limiter.limit("1/second", key_func=get_user_id)
+@limiter.limit("5/minute", key_func=get_user_id)
+def create_deletion(authentication_key: AuthenticationKey):
+    if authentication_key.student.email != os.environ.get("ADMIN_EMAIL"):
+        return abort(403)
+
+    if "email" not in request.json:
+        return abort(400)
+
+    query = select(Student).where(Student.email == request.json["email"])
+
+    student = db.session.execute(query).scalar_one_or_none()
+    if not student:
+        result = {
+            "result": "Failure",
+            "message": "No student is registered with that address."
+        }
+
+        return result
+
+    query = select(DeletionRequest).where(DeletionRequest.student_id == student.id)
+
+    deletion_request = db.session.execute(query).scalar_one_or_none()
+
+    if deletion_request:
+        result = {
+            "result": "Failure",
+            "message": "That student already has an open deletion request."
+        }
+
+        return result
+
+    deletion_request = DeletionRequest()
+    deletion_request.student_id = student.id
+    deletion_request.verification_code = str(uuid.uuid4())
+
+    db.session.add(deletion_request)
+
+    send_deletion_request(base_url + f"/deletion/confirm/{deletion_request.verification_code}", student.email)
+
+    db.session.commit()
+
+    return {"result": "Success"}
+
+@app.route("/deletion/confirm/<verification_code>")
+@limiter.limit("1/second")
+@limiter.limit("10/minute")
+def confirm_deletion(verification_code: str):
+    if len(verification_code) > 100:
+        return abort(400)
+
+    query = select(DeletionRequest).where(DeletionRequest.verification_code == verification_code)
+
+    deletion_request = db.session.execute(query).scalar_one_or_none()
+
+    if not deletion_request:
+        return abort(404)
+
+    email = deletion_request.student.email
+
+    q = select(AuthenticationKey).where(AuthenticationKey.student_id == deletion_request.student_id)
+    keys = db.session.execute(q).scalars().all()
+    for key in keys:
+        db.session.delete(key)
+
+    q = select(Enrollment).where(Enrollment.student_id == deletion_request.student_id)
+
+    enrollments = db.session.execute(q).scalars().all()
+
+    for enrollment in enrollments:
+        q = select(GradeSnapshot).where(GradeSnapshot.enrollment_id == enrollment.id)
+        grade_snapshots = db.session.execute(q).scalars().all()
+        for snapshot in grade_snapshots:
+            db.session.delete(snapshot)
+        db.session.delete(enrollment)
+
+    q = select(Score).where(Score.student_id == deletion_request.student_id)
+    scores = db.session.execute(q).scalars().all()
+    for score in scores:
+        q = select(ScoreSnapshot).where(ScoreSnapshot.score_id == score.id)
+        snapshots = db.session.execute(q).scalars().all()
+
+        for snapshot in snapshots:
+            db.session.delete(snapshot)
+        db.session.delete(score)
+
+    q = select(Contribution).where(Contribution.student_id == deletion_request.student_id)
+    contributions = db.session.execute(q).scalars().all()
+    for c in contributions:
+        db.session.delete(c)
+
+    q = select(View).where(View.student_id == deletion_request.student_id)
+    views = db.session.execute(q).scalars().all()
+    for v in views:
+        db.session.delete(v)
+
+    db.session.delete(deletion_request.student)
+
+    db.session.delete(deletion_request)
+
+    deletion_log = DeletionLog()
+    deletion_log.email_hash = hashlib.sha256(email.encode('utf-8')).hexdigest()
+
+    db.session.add(deletion_log)
+
+    db.session.commit()
+
+    send_deletion_confirmation(email)
+
+    return 'deleted'
+
 @app.route("/invitation/search/", methods=["POST"])
 @check_authentication
 @limiter.limit("1/second", key_func=get_user_id)
@@ -746,6 +877,7 @@ def get_viewers():
 def get_contributors():
     q = select(func.count(func.distinct(Contribution.student_id))).where(Contribution.time >= text('NOW() - INTERVAL \'24 HOURS\''))
     return str(db.session.execute(q).scalar())
+
 @app.route("/privacy.txt")
 @limiter.limit("10/minute")
 @limiter.limit("2/second")
