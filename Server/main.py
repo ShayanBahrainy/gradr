@@ -38,6 +38,28 @@ limiter = Limiter(
 
 verifier = Verifier()
 
+class Contribution(db.Model):
+    __tablename__ = "contributions"
+    id = Column(Integer, primary_key=True)
+
+    student_id = Column(Integer, ForeignKey('students.id'), nullable=False)
+    student = relationship('Student', backref='contributions')
+
+    type = Column(String(20), nullable=False)
+
+    time = Column(DateTime, server_default=func.now())
+
+class View(db.Model):
+    __tablename__ = "views"
+    id = Column(Integer, primary_key=True)
+
+    student_id = Column(Integer, ForeignKey('students.id'), nullable=False)
+    student = relationship('Student', backref='views')
+
+    type = Column(String(20), nullable=False)
+
+    time = Column(DateTime, server_default=func.now())
+
 class Student(db.Model):
     __tablename__ = "students"
     id = Column(Integer, primary_key=True)
@@ -415,12 +437,24 @@ def course_upload(authentication_key: AuthenticationKey):
             enrollment.student_id = authentication_key.student.id
 
             db.session.add(enrollment)
+
+        #Only make snapshots when something changes
+        q = select(GradeSnapshot).where(GradeSnapshot.enrollment_id == enrollment.id).distinct(GradeSnapshot.enrollment_id).order_by(GradeSnapshot.enrollment_id, GradeSnapshot.time.desc())
+        prev_snapshot = db.session.execute(q).scalars().one_or_none()
+        if prev_snapshot and prev_snapshot.numeric == course_data["numeric_grade"] and prev_snapshot.letter == course_data["letter_grade"]:
+            continue
+
         grade_snapshot = GradeSnapshot()
         grade_snapshot.enrollment_id = enrollment.id
         grade_snapshot.letter = course_data["letter_grade"]
         grade_snapshot.numeric = course_data["numeric_grade"]
 
         db.session.add(grade_snapshot)
+    contribution = Contribution()
+    contribution.student_id = authentication_key.student_id
+    contribution.type = "classes"
+    db.session.add(contribution)
+
     db.session.commit()
 
     return '', 200
@@ -469,7 +503,12 @@ def assignment_upload(authentication_key: AuthenticationKey):
         snapshot.score_id = score.id
         snapshot.raw_score = score_data["raw_score"]
         db.session.add(snapshot)
-        
+
+    contribution = Contribution()
+    contribution.student_id = authentication_key.student_id
+    contribution.type = "assignments"
+    db.session.add(contribution)
+
     db.session.commit()
 
     return '', 200
@@ -514,6 +553,12 @@ def course_info(authentication_key: AuthenticationKey, course_id: str):
     if not course:
         abort(404)
 
+    view = View()
+    view.student_id = authentication_key.student_id
+    view.type = "load_course"
+    db.session.add(view)
+    db.session.commit()
+
     return course_data(course)
 
 @app.route("/search/assignment/", methods=["POST"])
@@ -542,6 +587,12 @@ def assignment_search(authentication_key: AuthenticationKey):
     for assignment in assignments:
         assignments_data.append(assignment_data(assignment))
 
+    view = View()
+    view.student_id = authentication_key.student_id
+    view.type = "search"
+    db.session.add(view)
+    db.session.commit()
+
     return assignments_data
 
 @app.route("/assignment/<assignment_id>/", methods=["POST"])
@@ -559,6 +610,12 @@ def assignment_info(authentication_key: AuthenticationKey, assignment_id: str):
     assignment: Assignment = db.session.execute(query).scalars().one_or_none()
     if not assignment:
         abort(404)
+
+    view = View()
+    view.student_id = authentication_key.student_id
+    view.type = "load_assignment"
+    db.session.add(view)
+    db.session.commit()
 
     return assignment_data(assignment)
 
@@ -589,6 +646,19 @@ def fetch_gpa(authentication_key: AuthenticationKey):
 
     return result
 
+@app.route("/stats/viewers/")
+@limiter.limit("3/second")
+@limiter.limit("30/minute")
+def get_viewers():
+    q = select(func.count(func.distinct(View.student_id))).where(View.time >= text('NOW() - INTERVAL \'24 HOURS\''))
+    return str(db.session.execute(q).scalar())
+
+@app.route("/stats/contributors/")
+@limiter.limit("3/second")
+@limiter.limit("30/minute")
+def get_contributors():
+    q = select(func.count(func.distinct(Contribution.student_id))).where(Contribution.time >= text('NOW() - INTERVAL \'24 HOURS\''))
+    return str(db.session.execute(q).scalar())
 @app.route("/privacy.txt")
 @limiter.limit("10/minute")
 @limiter.limit("2/second")
