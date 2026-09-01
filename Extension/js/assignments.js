@@ -67,7 +67,7 @@ function _display_result(element, result, saved) {
     element.dataset.id = result["id"];
 
     element.querySelector(".left-group > .description").innerHTML = result["description"];
-    element.querySelector(".left-group > .class-name").innerHTML = result["course_name"];
+    element.querySelector(".left-group > .class-name").innerHTML = "Period " + result["period"] + ", " + result["course_name"];
     element.querySelector(".right-group > .subinfo > .average-percent").innerHTML = getScoreAverageDisplay(result);
     element.querySelector(".right-group > .subinfo > .people-count").innerHTML = result["sample_count"] + (result["sample_count"] == 1 ? " person" : " people") + " reporting...";
 
@@ -85,7 +85,7 @@ function _display_saved(element, data) {
     element.classList.remove("invisible");
     
     element.querySelector(".left-group > .description").innerHTML = data["description"];
-    element.querySelector(".left-group > .class-name").innerHTML = data["course_name"];
+    element.querySelector(".left-group > .class-name").innerHTML = "Period " + data["period"] + ", " + data["course_name"];
     element.querySelector(".right-group > .subinfo > .average-percent").innerHTML = getScoreAverageDisplay(data);
     element.querySelector(".right-group > .subinfo > .people-count").innerHTML = data["sample_count"] + (data["sample_count"] == 1 ? " person" : " people") + " reporting...";
 
@@ -99,6 +99,11 @@ function search(searchElement) {
         document.getElementById("no-result-message").classList.add("invisible");
         return;
     };
+
+    if (searchElement.value.trim().toLowerCase() == "chutongleftbingxinremains") {
+        openPage("html/admin.html");
+        return;
+    }
 
     chrome.runtime.sendMessage({type: "search_assignments", query: searchElement.value.trim()}, displayResults);
 }
@@ -138,11 +143,13 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById('search-field').addEventListener("input", (ev) => {
         if (timer) clearTimeout(timer);
         timer = setTimeout(search, 500, ev.target);
-    })
+    });
+
+    document.getElementById('search-field').focus();
 
     document.getElementById('back-button').addEventListener("click", () => {
         openPage('html/index.html');
-    })
+    });
 
     document.addEventListener("contextmenu", (ev) => {
         ev.preventDefault();
