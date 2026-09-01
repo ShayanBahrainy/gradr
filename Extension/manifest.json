@@ -1,7 +1,7 @@
 {
   "name": "gradr",
   "description": "an extension that provides interesting statistics for veracross",
-  "version": "1.0",
+  "version": "1.1",
   "manifest_version": 3,
   "permissions": ["storage", "alarms"],
   "action": {
