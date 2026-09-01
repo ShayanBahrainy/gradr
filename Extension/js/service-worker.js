@@ -547,7 +547,7 @@ async function fetchGPA() {
         headers: {
             "Content-Type": "application/json"
         }
-    })
+    });
 
     const response = await fetch(request);
 
@@ -626,6 +626,36 @@ async function shiftDownAssignment(id) {
     }
 
     chrome.storage.local.set({savedAssignments: saved_assignments});
+}
+
+async function getViewers() {
+    const request = new Request(SERVER_BASE_URL + "/stats/viewers/", {
+        method: "GET",
+    });
+
+    const response = await fetch(request);
+
+    if (response.ok) {
+        return await response.text();
+    }
+    else {
+        console.error(await response.text());
+    }
+}
+
+async function getContributors() {
+    const request = new Request(SERVER_BASE_URL + "/stats/contributors/", {
+        method: "GET",
+    });
+
+    const response = await fetch(request);
+
+    if (response.ok) {
+        return await response.text();
+    }
+    else {
+        console.error(await response.text());
+    }
 }
 
 chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
@@ -754,6 +784,14 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 
     if (message.type == "privacy_policy") {
         openPrivacyPolicy();
+    }
+
+    if (message.type == "get_viewers") {
+        getViewers().then(sendResponse);
+    }
+
+    if (message.type == "get_contributors") {
+        getContributors().then(sendResponse);
     }
 
     return true;
