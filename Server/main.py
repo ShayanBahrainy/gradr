@@ -277,7 +277,7 @@ def course_data(course: Course) -> dict:
         "name": course.name,
         "id": course.id,
         "teacher_name": course.teacher_name,
-        "numeric": numeric or 0.0,
+        "numeric": round(numeric, 2) or 0.0,
         "sample_count": sample_count or 0,
         "letter": numeric_to_letter_grade(numeric or 0.0),
         "period": course.period,
@@ -300,7 +300,7 @@ def assignment_data(assignment: Assignment) -> dict:
         "period": assignment.course.period,
         "date": assignment.date,
         "points_possible": assignment.points_possible,
-        "score_avg": score_avg or 0.0,
+        "score_avg": round(score_avg, 2) or 0.0,
         "sample_count": sample_count or 0,
     }
 
