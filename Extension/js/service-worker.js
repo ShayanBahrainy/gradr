@@ -620,7 +620,7 @@ async function shiftDownAssignment(id) {
     const saved_assignments = (await chrome.storage.local.get("savedAssignments")).savedAssignments ?? [];
 
     for (let i = 0; i < saved_assignments.length; i++) {
-        if (saved_classes[i] == id && i < saved_assignments.length - 1){
+        if (saved_assignments[i] == id && i < saved_assignments.length - 1){
             const tmp = saved_assignments[i + 1];
             saved_assignments[i + 1] = saved_assignments[i];
             saved_assignments[i] = tmp;
