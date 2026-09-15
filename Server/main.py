@@ -518,13 +518,13 @@ def assignment_upload(authentication_key: AuthenticationKey):
             assignment.date = score_data["date"]
             assignment.description = score_data["assignment_description"]
             assignment.notes = score_data["assignment_notes"]
-            assignment.points_possible = score_data["points_possible"]
+            assignment.points_possible = score_data["maximum_score"]
             
             db.session.add(assignment)
 
         assignment.description = score_data["assignment_description"]
         assignment.notes = score_data["assignment_notes"]
-        assignment.points_possible = score_data["points_possible"]
+        assignment.points_possible = score_data["maximum_score"]
         assignment.date = score_data["date"]
 
         score = db.session.query(Score).filter(Score.id == score_data["id"]).one_or_none()
