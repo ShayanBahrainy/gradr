@@ -871,3 +871,6 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 
 //Sync immediately on load, and then it will create an alarm for itself
 sync();
+
+chrome.runtime.onStartup.addListener(sync);
+chrome.runtime.onInstalled.addListener(sync);
